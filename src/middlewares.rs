@@ -5,7 +5,6 @@ use actix_web::{
 };
 
 use futures_util::future::{LocalBoxFuture, Ready, ready};
-use std::task::{Context, Poll};
 use uuid::Uuid;
 
 pub struct RequestId;
@@ -43,7 +42,7 @@ where
 
     forward_ready!(service);
 
-    fn call(&self, mut req: ServiceRequest) -> Self::Future {
+    fn call(&self, req: ServiceRequest) -> Self::Future {
         let rid = Uuid::new_v4().to_string();
         req.extensions_mut().insert(rid.clone());
 
