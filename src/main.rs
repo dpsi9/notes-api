@@ -6,6 +6,8 @@ use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::RwLock;
 
+mod tracing;
+
 #[derive(Debug, Error)]
 pub enum ApiError {
     #[error("Note not found")]
@@ -53,6 +55,8 @@ async fn main() -> std::io::Result<()> {
         },
     ];
     let store: NoteStore = Arc::new(RwLock::new(notes));
+
+    tracing::init_tracing();
 
     HttpServer::new(move || {
         App::new()
