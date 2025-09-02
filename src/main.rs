@@ -6,7 +6,10 @@ use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::RwLock;
 
+mod middlewares;
 mod tracing;
+
+use actix_web::middleware;
 
 #[derive(Debug, Error)]
 pub enum ApiError {
@@ -60,6 +63,9 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
+            .wrap(middlewares::RequestId)
+            .wrap(middleware::Compress::default())
+            .wrap(middleware::NormalizePath::trim())
             .app_data(web::Data::new(store.clone()))
             .route("/notes", web::get().to(list_notes))
             .route("/notes", web::post().to(create_note))
