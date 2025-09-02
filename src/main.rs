@@ -1,32 +1,14 @@
-use actix_web::{
-    App, HttpResponse, HttpServer, Responder, error::ResponseError, http::StatusCode, web,
-};
+use actix_web::{App, HttpResponse, HttpServer, Responder, error::ResponseError, web};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use thiserror::Error;
 use tokio::sync::RwLock;
 
+mod error;
 mod middlewares;
 mod tracing;
 
+use crate::error::ApiError;
 use actix_web::middleware;
-
-#[derive(Debug, Error)]
-pub enum ApiError {
-    #[error("Note not found")]
-    NotFound,
-    #[error("Internal server error")]
-    InternalError,
-}
-
-impl ResponseError for ApiError {
-    fn status_code(&self) -> StatusCode {
-        match self {
-            ApiError::NotFound => StatusCode::NOT_FOUND,
-            ApiError::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
-        }
-    }
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Note {
