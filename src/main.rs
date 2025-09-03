@@ -1,4 +1,5 @@
-use actix_web::{App, HttpResponse, HttpServer, Responder, web};
+use actix_cors::Cors;
+use actix_web::{App, HttpResponse, HttpServer, Responder, http, web};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -42,11 +43,32 @@ async fn main() -> std::io::Result<()> {
 
     tracing::init_tracing();
 
+    let json_config = web::JsonConfig::default()
+        .limit(64 * 1024)
+        .error_handler(|err, _| ApiError::BadRequest(format!("invalid JSON: {}", err)).into());
+
     HttpServer::new(move || {
         App::new()
             .wrap(middlewares::RequestId)
             .wrap(middleware::Compress::default())
             .wrap(middleware::NormalizePath::trim())
+            .wrap(
+                Cors::default()
+                    .allow_any_origin()
+                    .allowed_methods(vec!["GET", "PUT", "POST", "DELETE"])
+                    .allowed_headers(vec![
+                        http::header::AUTHORIZATION,
+                        http::header::CONTENT_TYPE,
+                    ])
+                    .max_age(3600),
+            )
+            .wrap(
+                middleware::DefaultHeaders::new()
+                    .add(("X-Content-Type-Options", "nosniff"))
+                    .add(("X-Frame-Options", "Deny"))
+                    .add(("Referrer-Policy", "no-referrer")),
+            )
+            .app_data(json_config.clone())
             .app_data(web::Data::new(store.clone()))
             .route("/notes", web::get().to(list_notes))
             .route("/notes", web::post().to(create_note))
