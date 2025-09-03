@@ -1,13 +1,18 @@
-use actix_web::{App, HttpResponse, HttpServer, Responder, error::ResponseError, web};
+use actix_web::{App, HttpResponse, HttpServer, Responder, web};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use validator::Validate;
 
 mod error;
 mod middlewares;
 mod tracing;
+mod types;
 
-use crate::error::ApiError;
+use crate::{
+    error::ApiError,
+    types::{CreateNote, UpdateNote},
+};
 use actix_web::middleware;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -15,12 +20,6 @@ pub struct Note {
     pub id: u64,
     pub title: String,
     pub body: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct UpdateNote {
-    pub title: Option<String>,
-    pub body: Option<String>,
 }
 
 pub type NoteStore = Arc<RwLock<Vec<Note>>>;
@@ -66,9 +65,11 @@ async fn list_notes(data: web::Data<NoteStore>) -> impl Responder {
     HttpResponse::Ok().json(&*store)
 }
 
-async fn create_note(data: web::Data<NoteStore>, payload: web::Json<Note>) -> impl Responder {
-    let title = &payload.title;
-    let body = &payload.body;
+async fn create_note(
+    data: web::Data<NoteStore>,
+    payload: web::Json<CreateNote>,
+) -> Result<impl Responder, ApiError> {
+    payload.validate()?;
 
     let mut store = data.write().await;
 
@@ -78,19 +79,21 @@ async fn create_note(data: web::Data<NoteStore>, payload: web::Json<Note>) -> im
         1
     };
 
-    store.push(Note {
+    let note = Note {
         id,
-        title: title.clone(),
-        body: body.clone(),
-    });
+        title: payload.title.clone(),
+        body: payload.body.clone(),
+    };
 
-    HttpResponse::Created().json(serde_json::json!({
-        "id": id,
-        "title": title
-    }))
+    store.push(note.clone());
+
+    Ok(HttpResponse::Created().json(note))
 }
 
-async fn delete_note(data: web::Data<NoteStore>, path: web::Path<u64>) -> impl Responder {
+async fn delete_note(
+    data: web::Data<NoteStore>,
+    path: web::Path<u64>,
+) -> Result<impl Responder, ApiError> {
     let id = path.into_inner();
 
     let mut store = data.write().await;
@@ -98,22 +101,28 @@ async fn delete_note(data: web::Data<NoteStore>, path: web::Path<u64>) -> impl R
     // first search the id the delete
     if let Some(pos) = store.iter().position(|n| n.id == id) {
         let removed = store.remove(pos);
-        HttpResponse::Ok().json(removed)
+        Ok(HttpResponse::Ok().json(removed))
     } else {
-        HttpResponse::NotFound().body(format!("Note with id {} not found", id))
+        Err(ApiError::BadRequest(format!(
+            "Note with id {} not found",
+            id
+        )))
     }
 }
 
 // write a handler that returns a specific note
 
-async fn get_note(data: web::Data<NoteStore>, path: web::Path<u64>) -> impl Responder {
+async fn get_note(
+    data: web::Data<NoteStore>,
+    path: web::Path<u64>,
+) -> Result<impl Responder, ApiError> {
     let id = path.into_inner();
     let store = data.read().await;
 
     if let Some(note) = store.iter().find(|n| n.id == id) {
-        HttpResponse::Ok().json(note)
+        Ok(HttpResponse::Ok().json(note))
     } else {
-        ApiError::NotFound.error_response()
+        Err(ApiError::NotFound)
     }
 }
 
@@ -121,7 +130,9 @@ async fn update_note(
     data: web::Data<NoteStore>,
     path: web::Path<u64>,
     payload: web::Json<UpdateNote>,
-) -> impl Responder {
+) -> Result<impl Responder, ApiError> {
+    payload.validate()?;
+
     let id = path.into_inner();
     let mut store = data.write().await;
 
@@ -134,8 +145,8 @@ async fn update_note(
             note.body = body.clone();
         }
 
-        HttpResponse::Ok().json(note)
+        Ok(HttpResponse::Ok().json(note))
     } else {
-        ApiError::NotFound.error_response()
+        Err(ApiError::NotFound)
     }
 }

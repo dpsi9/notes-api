@@ -14,3 +14,4 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter", "json"] }
 uuid = { version = "1.18.1", features = ["v4"] }
 actix-cors = "0.7.1"
 futures-util = "0.3.31"
+validator = { version = "0.20.0", features = ["derive"] }
