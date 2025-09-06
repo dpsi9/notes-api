@@ -77,6 +77,7 @@ async fn main() -> std::io::Result<()> {
             .route("/notes/{id}", web::put().to(update_note))
     })
     .bind("127.0.0.1:8080")?
+    .shutdown_timeout(5)
     .run()
     .await
 }

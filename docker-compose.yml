@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: notes_user
+      POSTGRES_PASSWORD: notes_pass
+      POSTGRES_DB: notes_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notes_user"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
