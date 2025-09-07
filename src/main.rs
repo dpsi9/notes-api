@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use validator::Validate;
 
+mod db_setup;
 mod error;
 mod middlewares;
 mod tracing;
@@ -41,7 +42,12 @@ async fn main() -> std::io::Result<()> {
     ];
     let store: NoteStore = Arc::new(RwLock::new(notes));
 
+    dotenvy::dotenv().ok();
     tracing::init_tracing();
+
+    let pool = db_setup::setup_db()
+        .await
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
     let json_config = web::JsonConfig::default()
         .limit(64 * 1024)
@@ -70,6 +76,7 @@ async fn main() -> std::io::Result<()> {
             )
             .app_data(json_config.clone())
             .app_data(web::Data::new(store.clone()))
+            .app_data(web::Data::new(pool.clone()))
             .route("/notes", web::get().to(list_notes))
             .route("/notes", web::post().to(create_note))
             .route("/notes/{id}", web::delete().to(delete_note))

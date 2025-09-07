@@ -15,3 +15,10 @@ uuid = { version = "1.18.1", features = ["v4"] }
 actix-cors = "0.7.1"
 futures-util = "0.3.31"
 validator = { version = "0.20.0", features = ["derive"] }
+dotenvy = "0.15.7"
+sqlx = { version = "0.8.6", features = [
+    "postgres",
+    "runtime-tokio-native-tls",
+    "macros",
+] }
+anyhow = "1.0.99"
