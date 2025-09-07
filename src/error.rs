@@ -50,3 +50,20 @@ impl ResponseError for ApiError {
         })
     }
 }
+
+pub fn map_sqlx_error(e: sqlx::Error) -> ApiError {
+    match e {
+        sqlx::Error::RowNotFound => ApiError::NotFound,
+        sqlx::Error::Database(db_err) => {
+            let code = db_err.code().map(|s| s.to_string());
+            match code.as_deref() {
+                Some("23505") => ApiError::BadRequest("unique constraint".into()),
+                _ => ApiError::InternalError,
+            }
+        }
+        _ => {
+            tracing::error!("sqlx error: {:?}", e);
+            ApiError::InternalError
+        }
+    }
+}
